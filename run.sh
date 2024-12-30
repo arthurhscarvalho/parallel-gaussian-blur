@@ -2,8 +2,8 @@
 
 IMG_PATH="./assets/image.png"
 NUM_THREADS="10"
-KERNEL_SIZE="10"
-NUM_ITERATIONS="15"
+KERNEL_SIZE="12"
+NUM_ITERATIONS="30"
 
 ./process_image.out \
     --image_path=$IMG_PATH \

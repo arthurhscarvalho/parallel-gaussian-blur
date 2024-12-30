@@ -7,13 +7,27 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// Barrier implementation for synchronization
+// Barrier implementation remains the same
 typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int count;
     int total;
 } Barrier;
+
+typedef struct {
+    const unsigned char* input;
+    unsigned char* output;
+    unsigned char* temp_buffer;
+    int width;
+    int height;
+    int start_row;
+    int end_row;
+    int kernel_size;
+    const float** kernel;
+    Barrier* barrier;
+    int total_iterations;
+} ThreadData;
 
 void barrier_init(Barrier* barrier, int total)
 {
@@ -38,21 +52,7 @@ void barrier_wait(Barrier* barrier)
     pthread_mutex_unlock(&barrier->mutex);
 }
 
-typedef struct {
-    const unsigned char* input;
-    unsigned char* output;
-    unsigned char* temp_buffer; // Intermediate buffer for ping-pong
-    int width;
-    int height;
-    int start_row;
-    int end_row;
-    int kernel_size;
-    const float** kernel;
-    Barrier* barrier;
-    int iteration;
-    int total_iterations;
-} ThreadData;
-
+// Kernel initialization remains the same
 const float** initialize_kernel(int kernel_size)
 {
     kernel_size++;
@@ -121,12 +121,24 @@ void process_chunk(const unsigned char* input, unsigned char* output, ThreadData
 void* blur_thread(void* arg)
 {
     ThreadData* data = (ThreadData*)arg;
+    // Copy initial input to temp buffer
+    if (data->start_row == 0) { // Only one thread needs to do this
+        memcpy(data->temp_buffer, data->input, data->width * data->height * 3);
+    }
+    barrier_wait(data->barrier); // Ensure copy is complete before starting
     for (int iter = 0; iter < data->total_iterations; iter++) {
-        const unsigned char* current_input = (iter % 2 == 0) ? data->input : data->temp_buffer;
-        unsigned char* current_output = (iter % 2 == 0) ? data->temp_buffer : data->output;
-        process_chunk(current_input, current_output, data);
-        // Synchronize all threads before next iteration
-        barrier_wait(data->barrier);
+        // For even iterations, read from temp and write to output
+        // For odd iterations, read from output and write to temp
+        if (iter % 2 == 0) {
+            process_chunk(data->temp_buffer, data->output, data);
+        } else {
+            process_chunk(data->output, data->temp_buffer, data);
+        }
+        barrier_wait(data->barrier); // Wait for all threads before next iteration
+    }
+    // If we ended on an odd iteration, copy temp buffer to output
+    if (data->total_iterations % 2 != 0 && data->start_row == 0) {
+        memcpy(data->output, data->temp_buffer, data->width * data->height * 3);
     }
     return NULL;
 }
@@ -135,7 +147,6 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
 {
     const float** kernel = initialize_kernel(kernel_size);
     Image blurred = { NULL, image.width, image.height };
-    // Allocate output and temporary buffer
     unsigned char* output = malloc(3 * image.width * image.height);
     unsigned char* temp = malloc(3 * image.width * image.height);
     if (!output || !temp) {
@@ -143,10 +154,8 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
         free(temp);
         return blurred;
     }
-    // Initialize barrier
     Barrier barrier;
     barrier_init(&barrier, num_threads);
-    // Create and initialize thread data
     pthread_t* threads = malloc(num_threads * sizeof(pthread_t));
     ThreadData* thread_data = malloc(num_threads * sizeof(ThreadData));
     int rows_per_thread = image.height / num_threads;
@@ -162,10 +171,8 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
         thread_data[i].kernel_size = kernel_size;
         thread_data[i].barrier = &barrier;
         thread_data[i].total_iterations = num_iterations;
-
         pthread_create(&threads[i], NULL, blur_thread, &thread_data[i]);
     }
-    // Wait for all threads to complete
     for (int i = 0; i < num_threads; i++) {
         pthread_join(threads[i], NULL);
     }
