@@ -11,13 +11,14 @@
 #define KERNEL_SIZE 7
 #define NUM_ITERATIONS 5
 
+float kernel[KERNEL_SIZE][KERNEL_SIZE];
+
 typedef struct {
     unsigned char* data;
     int width;
     int height;
 } Image;
 
-// Thread data structure
 typedef struct {
     const unsigned char* input;
     unsigned char* output;
@@ -26,8 +27,6 @@ typedef struct {
     int start_row;
     int end_row;
 } ThreadData;
-
-float kernel[KERNEL_SIZE][KERNEL_SIZE];
 
 void initialize_kernel()
 {
