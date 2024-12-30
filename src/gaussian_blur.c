@@ -245,7 +245,8 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
 }
 
 /**
- * Wrapper function that measures and reports execution time
+ * Wrapper function that computes the Gaussian blur,
+ * measures and reports execution time.
  * @param image Input image structure
  * @param kernel_size Size of the Gaussian kernel
  * @param num_iterations Number of blur iterations
