@@ -1,5 +1,4 @@
 #include "gaussian_blur.c"
-#include "ssim.c"
 
 int main(int argc, char* argv[])
 {
@@ -22,8 +21,8 @@ int main(int argc, char* argv[])
         printf("Invalid parameters passed to argv.\n");
         return 1;
     }
-    Image noise_img = read_image(image_path);
-    Image diffused_image = apply_gaussian_blur(noise_img.data, noise_img.width, noise_img.height, kernel_size, num_threads, num_iterations);
+    Image image = read_image(image_path);
+    Image diffused_image = apply_gaussian_blur(image, kernel_size, num_iterations, num_threads);
     write_image(diffused_image.data, diffused_image.width, diffused_image.height, "blurred.png");
     return 0;
 }
