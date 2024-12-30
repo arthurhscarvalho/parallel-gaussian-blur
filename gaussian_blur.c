@@ -11,6 +11,7 @@
 #define KERNEL_SIZE 7
 #define NUM_ITERATIONS 5
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 float kernel[KERNEL_SIZE][KERNEL_SIZE];
 
 typedef struct {
@@ -80,7 +81,9 @@ void* blur_thread(void* arg)
                         weight_sum += k;
                     }
                 }
+                pthread_mutex_lock(&mutex);
                 data->output[(y * data->width + x) * 3 + c] = clip_to_rgb(sum / weight_sum);
+                pthread_mutex_unlock(&mutex);
             }
         }
     }
