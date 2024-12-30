@@ -2,7 +2,7 @@
 CC = gcc
 CFLAGS = -DSTB_IMAGE_IMPLEMENTATION -lm -DSTB_IMAGE_WRITE_IMPLEMENTATION
 TARGET = process_image.out
-SOURCE = anisotropic_diffusion.c
+SOURCE = src/main.c
 
 # Default target
 all: $(TARGET)

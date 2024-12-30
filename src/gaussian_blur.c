@@ -1,24 +1,13 @@
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include "image_io.c"
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
 
-#define NUM_THREADS 10
-#define KERNEL_SIZE 7
-#define NUM_ITERATIONS 5
-
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-float kernel[KERNEL_SIZE][KERNEL_SIZE];
-
-typedef struct {
-    unsigned char* data;
-    int width;
-    int height;
-} Image;
 
 typedef struct {
     const unsigned char* input;
@@ -27,38 +16,38 @@ typedef struct {
     int height;
     int start_row;
     int end_row;
+    int kernel_size;
+    const float* kernel;
 } ThreadData;
 
-void initialize_kernel()
+void initialize_kernel(float* kernel, int kernel_size, float sigma)
 {
-    float sigma = 1.0f;
     float sum = 0.0f;
-    int half_size = KERNEL_SIZE / 2;
+    int half_size = kernel_size / 2;
     // Generate the kernel values
     for (int y = -half_size; y <= half_size; ++y) {
         for (int x = -half_size; x <= half_size; ++x) {
-            kernel[y + half_size][x + half_size] = exp(-(x * x + y * y) / (2 * sigma * sigma));
-            sum += kernel[y + half_size][x + half_size];
+            kernel[(y + half_size) * kernel_size + (x + half_size)] = exp(-(x * x + y * y) / (2 * sigma * sigma));
+            sum += kernel[(y + half_size) * kernel_size + (x + half_size)];
         }
     }
     // Normalize the kernel so that the sum of all elements equals 1
-    for (int y = 0; y < KERNEL_SIZE; ++y) {
-        for (int x = 0; x < KERNEL_SIZE; ++x) {
-            kernel[y][x] /= sum;
+    for (int y = 0; y < kernel_size; ++y) {
+        for (int x = 0; x < kernel_size; ++x) {
+            kernel[y * kernel_size + x] /= sum;
         }
     }
 }
 
 unsigned char clip_to_rgb(float x)
 {
-    unsigned char clipped = (unsigned char)fminf(255.0f, fmaxf(0.0f, roundf(x)));
-    return clipped;
+    return (unsigned char)fminf(255.0f, fmaxf(0.0f, roundf(x)));
 }
 
 void* blur_thread(void* arg)
 {
     ThreadData* data = (ThreadData*)arg;
-    int offset = KERNEL_SIZE / 2;
+    int offset = data->kernel_size / 2;
     for (int y = data->start_row; y < data->end_row; ++y) {
         for (int x = 0; x < data->width; ++x) {
             for (int c = 0; c < 3; ++c) {
@@ -76,7 +65,7 @@ void* blur_thread(void* arg)
                             sx = 0;
                         if (sx >= data->width)
                             sx = data->width - 1;
-                        float k = kernel[ky + offset][kx + offset];
+                        float k = data->kernel[(ky + offset) * data->kernel_size + (kx + offset)];
                         sum += data->input[(sy * data->width + sx) * 3 + c] * k;
                         weight_sum += k;
                     }
@@ -90,21 +79,17 @@ void* blur_thread(void* arg)
     return NULL;
 }
 
-Image gaussian_blur(const unsigned char* image, int width, int height)
+Image gaussian_blur(const unsigned char* image, int width, int height, int kernel_size, const float* kernel, int num_threads)
 {
-    initialize_kernel();
     Image blurred_image = { NULL, 0, 0 };
     unsigned char* blurred = (unsigned char*)malloc(3 * width * height);
     if (!blurred) {
         return blurred_image;
     }
     memset(blurred, 0, 3 * width * height);
-    const int num_threads = NUM_THREADS;
     pthread_t threads[num_threads];
     ThreadData thread_data[num_threads];
-    // Calculate rows per thread
     int rows_per_thread = height / num_threads;
-    // Create threads
     for (int i = 0; i < num_threads; i++) {
         thread_data[i].input = image;
         thread_data[i].output = blurred;
@@ -112,9 +97,10 @@ Image gaussian_blur(const unsigned char* image, int width, int height)
         thread_data[i].height = height;
         thread_data[i].start_row = i * rows_per_thread;
         thread_data[i].end_row = (i == num_threads - 1) ? height : (i + 1) * rows_per_thread;
+        thread_data[i].kernel_size = kernel_size;
+        thread_data[i].kernel = kernel;
         pthread_create(&threads[i], NULL, blur_thread, &thread_data[i]);
     }
-    // Wait for all threads to complete
     for (int i = 0; i < num_threads; i++) {
         pthread_join(threads[i], NULL);
     }
@@ -137,56 +123,16 @@ void flip_image(unsigned char* image, int width, int height)
     }
 }
 
-Image apply_gaussian_blur(const unsigned char* image, int width, int height)
+Image apply_gaussian_blur(const unsigned char* image, int width, int height, int kernel_size, int num_iterations, int num_threads)
 {
-    Image blurred_image = gaussian_blur(image, width, height);
-    for (int i = 1; i < NUM_ITERATIONS; i++) {
-        blurred_image = gaussian_blur(blurred_image.data, blurred_image.width, blurred_image.height);
+    float kernel[kernel_size * kernel_size];
+    initialize_kernel(kernel, kernel_size, 1.0f);
+    Image blurred_image = gaussian_blur(image, width, height, kernel_size, kernel, num_threads);
+    for (int i = 1; i < num_iterations; i++) {
+        blurred_image = gaussian_blur(blurred_image.data, blurred_image.width, blurred_image.height, kernel_size, kernel, num_threads);
     }
-    if (KERNEL_SIZE % 2 == 0) {
+    if (kernel_size % 2 == 0) {
         flip_image(blurred_image.data, blurred_image.width, blurred_image.height);
     }
     return blurred_image;
-}
-
-Image read_image(const char* image_path)
-{
-    Image image = { NULL, 0, 0 };
-    int width, height, channels;
-    // Load the image with stb_image (force grayscale by passing 1 as desired_channels)
-    unsigned char* loaded_image = stbi_load(image_path, &width, &height, &channels, 3);
-    if (!loaded_image) {
-        printf("Failed to load image: %s\n", stbi_failure_reason());
-        return image;
-    }
-    printf("Image loaded successfully!\n");
-    printf("Dimensions: %dx%d\n", width, height);
-    image.data = loaded_image;
-    image.width = width;
-    image.height = height;
-    return image;
-}
-
-int write_image(const unsigned char* image, int width, int height, const char* filepath)
-{
-    if (!image || width <= 0 || height <= 0 || !filepath) {
-        printf("Invalid input parameters for writing the image.\n");
-        return 0;
-    }
-    // Save the image as PNG
-    if (stbi_write_png(filepath, width, height, 3, image, width * 3) == 0) {
-        printf("Failed to save the image to %s\n", filepath);
-        return 0;
-    }
-    printf("Image saved successfully to %s\n", filepath);
-    return 1;
-}
-
-int main(int argc, char* argv[])
-{
-    const char* image_path = argv[1];
-    Image image = read_image(image_path);
-    Image blurred_image = apply_gaussian_blur(image.data, image.width, image.height);
-    write_image(blurred_image.data, blurred_image.width, blurred_image.height, "blurred.png");
-    return 0;
 }
