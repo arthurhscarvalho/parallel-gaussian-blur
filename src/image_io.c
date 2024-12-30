@@ -11,7 +11,7 @@ Image read_image(const char* image_path)
 {
     Image image = { NULL, 0, 0 };
     int width, height, channels;
-    // Load the image with stb_image (force grayscale by passing 1 as desired_channels)
+    // Load the image with stb_image (force RGB by passing 3 as desired_channels)
     unsigned char* loaded_image = stbi_load(image_path, &width, &height, &channels, 3);
     if (!loaded_image) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
