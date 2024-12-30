@@ -2,7 +2,7 @@
 
 IMG_PATH="./assets/image.png"
 NUM_THREADS="10"
-KERNEL_SIZE="12"
+KERNEL_SIZE="13"
 NUM_ITERATIONS="30"
 
 ./process_image.out \
