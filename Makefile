@@ -2,7 +2,7 @@
 CC = gcc
 CFLAGS = -DSTB_IMAGE_IMPLEMENTATION -lm -DSTB_IMAGE_WRITE_IMPLEMENTATION
 TARGET = process_image.out
-SOURCE = gaussian_blur.c
+SOURCE = anisotropic_diffusion.c
 
 # Default target
 all: $(TARGET)
