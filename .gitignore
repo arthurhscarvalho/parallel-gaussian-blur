@@ -1,7 +1,5 @@
 # Custom
-*.png
-*.jpg
-*.jpeg
+.vscode/
 
 # Prerequisites
 *.d
