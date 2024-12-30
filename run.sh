@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./process_image ./image.png
+./process_image.out ./image.png

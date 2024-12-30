@@ -1,7 +1,7 @@
 # Define variables
 CC = gcc
 CFLAGS = -DSTB_IMAGE_IMPLEMENTATION -lm -DSTB_IMAGE_WRITE_IMPLEMENTATION
-TARGET = process_image
+TARGET = process_image.out
 SOURCE = gaussian_blur.c
 
 # Default target
