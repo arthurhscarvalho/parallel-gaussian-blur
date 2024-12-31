@@ -1,11 +1,8 @@
+#include "argparser.c"
 #include "image_io.c"
 #include <math.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/time.h>
-#include <unistd.h>
 
 /**
  * Barrier synchronization structure for thread coordination
@@ -74,13 +71,13 @@ void barrier_wait(Barrier* barrier)
  * @param kernel_size Size of the kernel (must be odd)
  * @return 2D array containing the normalized Gaussian kernel
  */
-const float** initialize_kernel(int kernel_size)
+const float** initialize_kernel(const int kernel_size, const float sigma)
 {
     float** kernel = (float**)malloc(kernel_size * sizeof(float*));
     for (int i = 0; i < kernel_size; i++) {
         kernel[i] = (float*)malloc(kernel_size * sizeof(float));
     }
-    float sigma = 1.0; // Standard deviation for Gaussian distribution
+    // float sigma = 1.0; // Standard deviation for Gaussian distribution
     float sum = 0.0; // For normalization
     int half_size = kernel_size / 2;
     // Calculate Gaussian values
@@ -196,15 +193,19 @@ void* blur_thread(void* arg)
  * @param num_iterations Number of blur iterations to perform
  * @return Blurred image structure
  */
-Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads, int num_iterations)
+Image compute_gaussian_blur(const Image* image, const Parameters* params)
 {
+    const int num_threads = params->num_threads;
+    const int num_iterations = params->num_iterations;
+    const float sigma = params->sigma;
+    int kernel_size = params->kernel_size;
     if (kernel_size % 2 == 0)
         kernel_size++;
-    const float** kernel = initialize_kernel(kernel_size);
-    Image blurred = { NULL, image.width, image.height };
+    const float** kernel = initialize_kernel(kernel_size, sigma);
+    Image blurred = { NULL, image->width, image->height };
     // Allocate output and temporary buffers
-    unsigned char* output = malloc(3 * image.width * image.height);
-    unsigned char* temp = malloc(3 * image.width * image.height);
+    unsigned char* output = malloc(3 * image->width * image->height);
+    unsigned char* temp = malloc(3 * image->width * image->height);
     if (!output || !temp) {
         free(output);
         free(temp);
@@ -216,16 +217,16 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
     // Create and initialize threads
     pthread_t* threads = malloc(num_threads * sizeof(pthread_t));
     ThreadData* thread_data = malloc(num_threads * sizeof(ThreadData));
-    int rows_per_thread = image.height / num_threads;
+    int rows_per_thread = image->height / num_threads;
     // Launch threads
     for (int i = 0; i < num_threads; i++) {
-        thread_data[i].input = image.data;
+        thread_data[i].input = image->data;
         thread_data[i].output = output;
         thread_data[i].temp_buffer = temp;
-        thread_data[i].width = image.width;
-        thread_data[i].height = image.height;
+        thread_data[i].width = image->width;
+        thread_data[i].height = image->height;
         thread_data[i].start_row = i * rows_per_thread;
-        thread_data[i].end_row = (i == num_threads - 1) ? image.height : (i + 1) * rows_per_thread;
+        thread_data[i].end_row = (i == num_threads - 1) ? image->height : (i + 1) * rows_per_thread;
         thread_data[i].kernel = kernel;
         thread_data[i].kernel_size = kernel_size;
         thread_data[i].barrier = &barrier;
@@ -253,12 +254,12 @@ Image compute_gaussian_blur(const Image image, int kernel_size, int num_threads,
  * @param num_threads Number of threads to use
  * @return Blurred image structure
  */
-Image apply_gaussian_blur(const Image image, int kernel_size, int num_iterations, int num_threads)
+Image apply_gaussian_blur(const Image* image, const Parameters* params)
 {
     printf("Beginning gaussian blur computation\n");
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    Image blurred = compute_gaussian_blur(image, kernel_size, num_threads, num_iterations);
+    Image blurred = compute_gaussian_blur(image, params);
     gettimeofday(&end, NULL);
     double elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
     printf("Finished. Time taken: %.2f seconds\n", elapsed_time);

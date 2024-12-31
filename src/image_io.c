@@ -25,14 +25,14 @@ Image read_image(const char* image_path)
     return image;
 }
 
-int write_image(const unsigned char* image, int width, int height, const char* filepath)
+int write_image(const Image image, const char* filepath)
 {
-    if (!image || width <= 0 || height <= 0 || !filepath) {
+    if (!image.data || image.width <= 0 || image.height <= 0 || !filepath) {
         printf("Invalid input parameters for writing the image.\n");
         return 0;
     }
     // Save the image as PNG
-    if (stbi_write_png(filepath, width, height, 3, image, width * 3) == 0) {
+    if (stbi_write_png(filepath, image.width, image.height, 3, image.data, image.width * 3) == 0) {
         printf("Failed to save the image to %s\n", filepath);
         return 0;
     }

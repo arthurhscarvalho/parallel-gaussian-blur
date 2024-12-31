@@ -1,5 +1,6 @@
 # Custom
 .vscode/
+output/
 
 # Prerequisites
 *.d
