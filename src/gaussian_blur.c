@@ -69,6 +69,7 @@ void barrier_wait(Barrier* barrier)
 /**
  * Creates and initializes a Gaussian kernel
  * @param kernel_size Size of the kernel (must be odd)
+ * @param sigma Standard deviation for Gaussian distribution
  * @return 2D array containing the normalized Gaussian kernel
  */
 const float** initialize_kernel(const int kernel_size, const float sigma)
@@ -187,9 +188,7 @@ void* blur_thread(void* arg)
  * incremented so that it's an odd number. This is a common behavior
  * in gaussian kernels.
  * @param image Input image structure
- * @param kernel_size Size of the Gaussian kernel
- * @param num_threads Number of threads to use
- * @param num_iterations Number of blur iterations to perform
+ * @param params Struct with the parameters for the gaussian blur
  * @return Blurred image structure
  */
 Image compute_gaussian_blur(const Image* image, const Parameters* params)
@@ -248,9 +247,7 @@ Image compute_gaussian_blur(const Image* image, const Parameters* params)
  * Wrapper function that computes the Gaussian blur,
  * measures and reports execution time.
  * @param image Input image structure
- * @param kernel_size Size of the Gaussian kernel
- * @param num_iterations Number of blur iterations
- * @param num_threads Number of threads to use
+ * @param params Struct with the parameters for the gaussian blur
  * @return Blurred image structure
  */
 Image apply_gaussian_blur(const Image* image, const Parameters* params)
