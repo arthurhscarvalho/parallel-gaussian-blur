@@ -77,7 +77,6 @@ const float** initialize_kernel(const int kernel_size, const float sigma)
     for (int i = 0; i < kernel_size; i++) {
         kernel[i] = (float*)malloc(kernel_size * sizeof(float));
     }
-    // float sigma = 1.0; // Standard deviation for Gaussian distribution
     float sum = 0.0; // For normalization
     int half_size = kernel_size / 2;
     // Calculate Gaussian values

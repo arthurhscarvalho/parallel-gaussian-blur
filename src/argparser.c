@@ -8,7 +8,7 @@ typedef struct {
     int num_threads;
     int num_iterations;
     int kernel_size;
-    float sigma;
+    float sigma; // Standard deviation for Gaussian distribution
 } Parameters;
 
 const Parameters parse_args(int argc, char* argv[])
