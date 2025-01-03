@@ -4,7 +4,7 @@ This project demonstrates the implementation of a **Gaussian Blur** algorithm
 for images using multi-threading in C. While primarily educational, the project 
 explores the challenges and solutions in parallelizing image processing tasks.
 
-The Gaussian blur is applied using a full RGB image convolution with a 2D 
+The Gaussian blur is applied using a full convolution of an RGB image with a 2D 
 kernel, ensuring high-quality smoothing across the image. Unlike implementations
 optimized for separable kernels (which split the operation into horizontal and 
 vertical passes), this project supports non-separable kernels. This makes it a 
